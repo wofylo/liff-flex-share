@@ -1,0 +1,12 @@
+liff_id: "2012578447-PvSZyzEe"
+timezone: "Asia/Taipei"
+weekday: 3            # Monday=0 ... Thursday=3
+title: "本週四 AI 線上聚會"
+time: "21:30-22:30"
+meeting:
+  url: "https://zoom.example/j/0000000000?pwd=REPLACE"
+  password: "REPLACE"
+sheet_url: "https://docs.google.com/spreadsheets/d/REPLACE"
+rsvp_lines:
+  - "線上參加的："
+  - "無法參加，心與大家同在："

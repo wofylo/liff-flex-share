@@ -95,7 +95,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-  const LIFF_ID = "2011736396-qcyiLRJ3";
+  const LIFF_ID = "2012578447-PvSZyzEe";
 
   const $ = (id) => document.getElementById(id);
   const status = (msg) => { $("status").textContent = msg; };
@@ -305,8 +305,20 @@
     }
     // 網址帶 ?f=名稱 時，改用事先放在 flex/ 資料夾的 Flex 卡片
     let preset = null;
-    const f = new URLSearchParams(location.search).get("f");
-    if (f && /^[a-z0-9-]+$/.test(f)) {
+    const qs = new URLSearchParams(location.search);
+    const f = qs.get("f");
+    const d = qs.get("d");
+    if (d) {
+      // ?d=base64url(UTF-8 的 Flex 訊息 JSON)：卡片內容只在網址裡，不放進公開的 repo
+      try {
+        const bin = atob(d.replace(/-/g, "+").replace(/_/g, "/"));
+        preset = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+        if (preset.type !== "flex") throw new Error("type 必須是 flex");
+        $("json").textContent = JSON.stringify(preset, null, 2);
+        $("md").disabled = true;
+        $("preview").textContent = "已載入網址帶入的卡片，按分享即送出這張卡片（下方 Markdown 不會使用）。";
+      } catch (e) { status("網址帶入的卡片格式錯誤：" + e.message); return; }
+    } else if (f && /^[a-z0-9-]+$/.test(f)) {
       try {
         const r = await fetch(`flex/${f}.json`, { cache: "no-store" });
         if (!r.ok) throw new Error(r.status);
@@ -317,7 +329,7 @@
       } catch (e) { status(`載入卡片「${f}」失敗：${e.message}`); return; }
     }
     $("share").disabled = false;
-    status(preset ? `預設卡片：${f}` : "");
+    status(preset ? `預設卡片：${d ? "網址帶入" : f}` : "");
     $("share").addEventListener("click", async () => {
       let flex;
       try { flex = preset || jsonFlex($("md").value) || toFlex($("md").value); } catch (e) { status(e.message); return; }
