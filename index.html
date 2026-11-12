@@ -293,9 +293,34 @@
   }
 
   // ---------- LIFF ----------
+  // LINE 登入導回後，原本的查詢參數可能改放在 liff.state 或 liffRedirectUri 裡
+  function paramFromUrl(name) {
+    const sp = new URLSearchParams(location.search);
+    const direct = sp.get(name);
+    if (direct) return direct;
+    const state = sp.get("liff.state");
+    if (state) {
+      const v = new URLSearchParams(state.slice(state.indexOf("?") + 1)).get(name);
+      if (v) return v;
+    }
+    const redirect = sp.get("liffRedirectUri");
+    if (redirect) {
+      try { const v = new URL(redirect).searchParams.get(name); if (v) return v; } catch (e) {}
+    }
+    return null;
+  }
+  const STASH_KEY = "liffCardD";
+  const stash = {
+    get() { try { return sessionStorage.getItem(STASH_KEY); } catch (e) { return null; } },
+    set(v) { try { sessionStorage.setItem(STASH_KEY, v); } catch (e) {} },
+    clear() { try { sessionStorage.removeItem(STASH_KEY); } catch (e) {} }
+  };
+
   async function main() {
     refresh();
     $("md").addEventListener("input", refresh);
+    const incoming = paramFromUrl("d");
+    if (incoming) stash.set(incoming);
     try { await liff.init({ liffId: LIFF_ID }); }
     catch (e) { status("LIFF 初始化失敗：" + e.message); return; }
     // 在電腦或手機的一般瀏覽器打開時，先導去 LINE 登入，登入後就能直接分享
@@ -305,9 +330,8 @@
     }
     // 網址帶 ?f=名稱 時，改用事先放在 flex/ 資料夾的 Flex 卡片
     let preset = null;
-    const qs = new URLSearchParams(location.search);
-    const f = qs.get("f");
-    const d = qs.get("d");
+    const f = paramFromUrl("f");
+    const d = paramFromUrl("d") || stash.get();
     if (d) {
       // ?d=base64url(UTF-8 的 Flex 訊息 JSON)：卡片內容只在網址裡，不放進公開的 repo
       try {
@@ -317,7 +341,8 @@
         $("json").textContent = JSON.stringify(preset, null, 2);
         $("md").disabled = true;
         $("preview").textContent = "已載入網址帶入的卡片，按分享即送出這張卡片（下方 Markdown 不會使用）。";
-      } catch (e) { status("網址帶入的卡片格式錯誤：" + e.message); return; }
+        stash.clear();
+      } catch (e) { stash.clear(); status("網址帶入的卡片格式錯誤：" + e.message); return; }
     } else if (f && /^[a-z0-9-]+$/.test(f)) {
       try {
         const r = await fetch(`flex/${f}.json`, { cache: "no-store" });
