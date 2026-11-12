@@ -51,44 +51,65 @@ def next_meeting_date(cfg: dict, today=None):
     return (now + timedelta(days=days_ahead)).date()
 
 
-def row(label: str, value: str, action_uri: str | None = None) -> dict:
-    value_span = {"type": "span", "text": value}
-    comp = {
-        "type": "text", "wrap": True, "size": "sm", "color": "#222222", "margin": "sm",
-        "contents": [{"type": "span", "text": f"{label}｜", "weight": "bold"}, value_span],
+BG = "#111827"
+PANEL = "#1F2937"
+DIVIDER = "#374151"
+TEXT = "#F9FAFB"
+MUTED = "#9CA3AF"
+ACCENT = "#34D399"
+LINK = "#60A5FA"
+
+
+def info_row(icon: str, label: str, value: str, highlight: bool = False) -> dict:
+    return {
+        "type": "box", "layout": "horizontal", "spacing": "md", "margin": "lg", "alignItems": "center",
+        "contents": [
+            {"type": "text", "text": icon, "size": "lg", "flex": 0},
+            {"type": "text", "text": label, "size": "sm", "color": MUTED, "flex": 2},
+            {"type": "text", "text": value, "size": "md", "weight": "bold", "wrap": True, "flex": 5,
+             "color": ACCENT if highlight else TEXT},
+        ],
     }
-    if action_uri:
-        comp["action"] = {"type": "uri", "uri": action_uri}
-    return comp
 
 
 def build_card(cfg: dict, date) -> dict:
     date_text = f"{date.month}/{date.day}（{WEEKDAYS[date.weekday()]}）"
+    header = {
+        "type": "box", "layout": "vertical", "paddingAll": "20px",
+        "contents": [
+            {"type": "text", "text": "THIS WEEK", "size": "xs", "weight": "bold", "color": ACCENT},
+            {"type": "text", "text": f"🤖 {cfg['title']}", "size": "xl", "weight": "bold",
+             "color": TEXT, "wrap": True, "margin": "sm"},
+        ],
+    }
     body = [
-        {"type": "text", "text": cfg["title"], "weight": "bold", "size": "lg", "wrap": True},
-        row("日期", date_text),
-        row("時間", cfg["time"]),
-        row("密碼", str(cfg["meeting"]["password"])),
+        info_row("📅", "日期", date_text),
+        info_row("⏰", "時間", cfg["time"]),
+        info_row("🔑", "密碼", str(cfg["meeting"]["password"]), highlight=True),
     ]
     if cfg.get("rsvp_lines"):
-        body.append({"type": "separator", "margin": "lg"})
+        body.append({"type": "separator", "margin": "xl", "color": DIVIDER})
         body += [
-            {"type": "text", "text": line, "wrap": True, "size": "sm", "margin": "md", "color": "#222222"}
+            {"type": "text", "text": line, "wrap": True, "size": "sm", "margin": "lg", "color": TEXT}
             for line in cfg["rsvp_lines"]
         ]
     footer = [
-        {"type": "button", "style": "primary", "height": "sm",
-         "action": {"type": "uri", "label": "加入會議", "uri": cfg["meeting"]["url"]}},
-        {"type": "button", "style": "link", "height": "sm",
-         "action": {"type": "uri", "label": "需求與表單", "uri": cfg["sheet_url"]}},
+        {"type": "button", "style": "primary", "height": "sm", "color": "#10B981",
+         "action": {"type": "uri", "label": "🎥 加入會議", "uri": cfg["meeting"]["url"]}},
+        {"type": "button", "style": "link", "height": "sm", "color": LINK,
+         "action": {"type": "uri", "label": "📋 需求與表單", "uri": cfg["sheet_url"]}},
     ]
     return {
         "type": "flex",
-        "altText": f"{cfg['title']} {date_text} {cfg['time']}"[:100],
+        "altText": f"🤖 {cfg['title']} {date_text} {cfg['time']}"[:100],
         "contents": {
             "type": "bubble", "size": "mega",
-            "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
-            "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": footer},
+            "styles": {"header": {"backgroundColor": PANEL}, "body": {"backgroundColor": BG},
+                       "footer": {"backgroundColor": BG}},
+            "header": header,
+            "body": {"type": "box", "layout": "vertical", "paddingAll": "20px", "contents": body},
+            "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "16px",
+                       "contents": footer},
         },
     }
 
@@ -100,6 +121,16 @@ def share_url(cfg: dict, card: dict) -> str:
     if len(url) > MAX_URL:
         raise SystemExit(f"share URL too long ({len(url)} chars)")
     return url
+
+
+def save_backup(url: str) -> None:
+    import subprocess
+    backup = HERE / "last_share_url.txt"
+    backup.write_text(url + "\n", encoding="utf-8")
+    result = subprocess.run(["clip"], input=url.encode("ascii"), capture_output=True)
+    if result.returncode != 0:
+        LOG.warning("clipboard copy failed: %s", result.stderr.decode(errors="replace").strip())
+    LOG.info("share URL saved to %s and copied to clipboard", backup.name)
 
 
 def toast(title: str, message: str) -> None:
@@ -136,6 +167,7 @@ def main() -> int:
     if args.dry_run:
         print(json.dumps(card, ensure_ascii=False, indent=2))
         return 0
+    save_backup(url)
     if not webbrowser.open(url):
         LOG.error("could not open browser")
         return 1

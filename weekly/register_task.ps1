@@ -1,5 +1,5 @@
 param(
-    [string]$Time = "19:30",
+    [string]$Time = "18:50",
     [string]$TaskName = "WeeklyMeetingCard"
 )
 $ErrorActionPreference = "Stop"

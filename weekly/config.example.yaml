@@ -8,5 +8,5 @@ meeting:
   password: "REPLACE"
 sheet_url: "https://docs.google.com/spreadsheets/d/REPLACE"
 rsvp_lines:
-  - "線上參加的："
-  - "無法參加，心與大家同在："
+  - "🙋 線上參加的："
+  - "💌 無法參加，心與大家同在："
